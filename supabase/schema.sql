@@ -10,7 +10,7 @@ CREATE TABLE profiles (
   email TEXT UNIQUE NOT NULL,
   full_name TEXT,
   username TEXT UNIQUE,
-  birth_date DATE NOT NULL,
+  birth_date DATE NOT NULL CHECK (birth_date <= (CURRENT_DATE - INTERVAL '18 years')),
   gender TEXT NOT NULL CHECK (gender IN ('male', 'female', 'other')),
   interested_in TEXT[] NOT NULL CHECK (array_length(interested_in, 1) > 0),
   bio TEXT,

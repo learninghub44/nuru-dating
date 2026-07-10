@@ -10,6 +10,8 @@ import { Heart, ArrowRight, ArrowLeft } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { calculateAge } from '@/lib/utils'
 
+const MIN_AGE = 18
+
 export default function OnboardingPage() {
   const router = useRouter()
   const [step, setStep] = useState(1)
@@ -55,6 +57,12 @@ export default function OnboardingPage() {
       return
     }
 
+    if (calculateAge(formData.birthDate) < MIN_AGE) {
+      setError('You must be at least 18 years old to use Nuru.')
+      setLoading(false)
+      return
+    }
+
     try {
       const supabase = createClient()
       const { data: { user } } = await supabase.auth.getUser()
@@ -95,6 +103,10 @@ export default function OnboardingPage() {
   const nextStep = () => {
     if (step === 1 && (!formData.birthDate || !formData.gender)) {
       setError('Please fill in all required fields')
+      return
+    }
+    if (step === 1 && calculateAge(formData.birthDate) < MIN_AGE) {
+      setError('You must be at least 18 years old to use Nuru.')
       return
     }
     if (step === 2 && formData.interestedIn.length === 0) {
@@ -145,8 +157,16 @@ export default function OnboardingPage() {
                   required
                 />
                 {formData.birthDate && (
-                  <p className="text-sm text-muted-foreground">
+                  <p
+                    className={`text-sm ${
+                      calculateAge(formData.birthDate) < MIN_AGE
+                        ? 'text-destructive'
+                        : 'text-muted-foreground'
+                    }`}
+                  >
                     Age: {calculateAge(formData.birthDate)} years old
+                    {calculateAge(formData.birthDate) < MIN_AGE &&
+                      ' — you must be 18 or older to use Nuru'}
                   </p>
                 )}
               </div>

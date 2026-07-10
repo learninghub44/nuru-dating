@@ -115,6 +115,12 @@ export default function ProfilePage() {
     setSaving(true)
     setError('')
 
+    if (formData.birth_date && calculateAge(formData.birth_date) < 18) {
+      setError('You must be at least 18 years old to use Nuru.')
+      setSaving(false)
+      return
+    }
+
     try {
       const supabase = createClient()
       const { data: { user } } = await supabase.auth.getUser()
