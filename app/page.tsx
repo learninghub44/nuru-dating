@@ -47,11 +47,12 @@ export default function LandingPage() {
             Premium Dating Experience
           </Badge>
           <h1 className="text-5xl md:text-7xl font-bold mb-6 bg-gradient-to-r from-white via-gold-200 to-gold-500 bg-clip-text text-transparent">
-            Find Real Connections<br />That Matter
+            Get Your Love Destiny<br />Starts Here
           </h1>
           <p className="text-xl text-foreground/70 mb-8 max-w-2xl mx-auto">
-            Where meaningful connections begin. Discover genuine people, AI companions, 
-            and build relationships that last in a safe, premium environment.
+            Your personal matchmaking helper — discover genuine people, chat with AI
+            companions, and build the real connection you've been waiting for, in a
+            safe, premium environment.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link href="/register">
@@ -65,6 +66,33 @@ export default function LandingPage() {
               </Button>
             </Link>
           </div>
+
+          {/* Member showcase — ladies and men on the platform */}
+          <div className="mt-14 flex justify-center items-end gap-3 sm:gap-4">
+            {[
+              { src: 'https://randomuser.me/api/portraits/women/32.jpg', alt: 'Nuru member' },
+              { src: 'https://randomuser.me/api/portraits/men/45.jpg', alt: 'Nuru member' },
+              { src: 'https://randomuser.me/api/portraits/women/68.jpg', alt: 'Nuru member', big: true },
+              { src: 'https://randomuser.me/api/portraits/men/12.jpg', alt: 'Nuru member' },
+              { src: 'https://randomuser.me/api/portraits/women/21.jpg', alt: 'Nuru member' },
+            ].map((person, i) => (
+              <div
+                key={i}
+                className={`relative rounded-2xl overflow-hidden border-2 border-gold-500/40 shadow-lg shadow-gold-500/10 ${
+                  person.big
+                    ? 'h-28 w-28 sm:h-36 sm:w-36'
+                    : 'h-20 w-20 sm:h-28 sm:w-28'
+                }`}
+              >
+                <img
+                  src={person.src}
+                  alt={person.alt}
+                  className="h-full w-full object-cover"
+                />
+              </div>
+            ))}
+          </div>
+
           <div className="mt-12 flex justify-center gap-8 text-foreground/60">
             <div className="text-center">
               <div className="text-3xl font-bold text-gold-500">50K+</div>
@@ -218,7 +246,6 @@ export default function LandingPage() {
                 <h3 className="text-lg font-semibold mb-2">Starter</h3>
                 <div className="text-3xl font-bold text-gold-500 mb-2">100</div>
                 <div className="text-foreground/70 mb-4">Credits</div>
-                <div className="text-2xl font-bold mb-4">KES 200</div>
                 <ul className="text-sm text-foreground/70 space-y-2 mb-6">
                   <li className="flex items-center justify-center gap-2">
                     <Check className="h-4 w-4 text-gold-500" />
@@ -237,7 +264,6 @@ export default function LandingPage() {
                 <h3 className="text-lg font-semibold mb-2">Popular</h3>
                 <div className="text-3xl font-bold text-gold-500 mb-2">250</div>
                 <div className="text-foreground/70 mb-4">Credits</div>
-                <div className="text-2xl font-bold mb-4">KES 450</div>
                 <ul className="text-sm text-foreground/70 space-y-2 mb-6">
                   <li className="flex items-center justify-center gap-2">
                     <Check className="h-4 w-4 text-gold-500" />
@@ -260,7 +286,6 @@ export default function LandingPage() {
                 <h3 className="text-lg font-semibold mb-2">Value</h3>
                 <div className="text-3xl font-bold text-gold-500 mb-2">500</div>
                 <div className="text-foreground/70 mb-4">Credits</div>
-                <div className="text-2xl font-bold mb-4">KES 800</div>
                 <ul className="text-sm text-foreground/70 space-y-2 mb-6">
                   <li className="flex items-center justify-center gap-2">
                     <Check className="h-4 w-4 text-gold-500" />
@@ -283,7 +308,6 @@ export default function LandingPage() {
                 <h3 className="text-lg font-semibold mb-2">Premium</h3>
                 <div className="text-3xl font-bold text-gold-500 mb-2">1000</div>
                 <div className="text-foreground/70 mb-4">Credits</div>
-                <div className="text-2xl font-bold mb-4">KES 1500</div>
                 <ul className="text-sm text-foreground/70 space-y-2 mb-6">
                   <li className="flex items-center justify-center gap-2">
                     <Check className="h-4 w-4 text-gold-500" />
