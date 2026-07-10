@@ -1,5 +1,6 @@
 'use client'
 
+import type React from 'react'
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
@@ -9,7 +10,7 @@ import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
-import { Heart, Camera, MapPin, Edit2, Save, X, Plus, Trash2 } from 'lucide-react'
+import { Heart, Camera, MapPin, Edit2, Save, X, Trash2 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { calculateAge } from '@/lib/utils'
 
@@ -41,7 +42,8 @@ export default function ProfilePage() {
   const [editing, setEditing] = useState(false)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
-  const [newPhotoUrl, setNewPhotoUrl] = useState('')
+  const [uploadingPhoto, setUploadingPhoto] = useState(false)
+  const [isDraggingPhoto, setIsDraggingPhoto] = useState(false)
 
   const [formData, setFormData] = useState({
     full_name: '',
@@ -158,29 +160,95 @@ export default function ProfilePage() {
     }
   }
 
-  const handleAddPhoto = async () => {
-    if (!newPhotoUrl) return
+  const MAX_PHOTOS = 6
+  const MAX_PHOTO_SIZE = 5 * 1024 * 1024 // 5MB
+  const ALLOWED_PHOTO_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif']
 
+  const handlePhotoFiles = async (files: FileList | File[]) => {
+    setError('')
+    const fileArray = Array.from(files)
+    const currentPhotos = profile?.photos || []
+    const remainingSlots = MAX_PHOTOS - currentPhotos.length
+
+    if (remainingSlots <= 0) {
+      setError(`You can only have up to ${MAX_PHOTOS} photos`)
+      return
+    }
+
+    const filesToUpload = fileArray.slice(0, remainingSlots)
+
+    for (const file of filesToUpload) {
+      if (!ALLOWED_PHOTO_TYPES.includes(file.type)) {
+        setError('Please upload JPG, PNG, WEBP, or GIF images only')
+        continue
+      }
+      if (file.size > MAX_PHOTO_SIZE) {
+        setError('Each photo must be under 5MB')
+        continue
+      }
+    }
+
+    const validFiles = filesToUpload.filter(
+      (f) => ALLOWED_PHOTO_TYPES.includes(f.type) && f.size <= MAX_PHOTO_SIZE
+    )
+
+    if (validFiles.length === 0) return
+
+    setUploadingPhoto(true)
     try {
       const supabase = createClient()
       const { data: { user } } = await supabase.auth.getUser()
-
       if (!user) throw new Error('User not found')
 
-      const updatedPhotos = [...(profile?.photos || []), newPhotoUrl]
+      const uploadedUrls: string[] = []
 
-      const { error } = await supabase
+      for (const file of validFiles) {
+        const ext = file.name.split('.').pop()
+        const path = `${user.id}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`
+
+        const { error: uploadError } = await supabase.storage
+          .from('profile-photos')
+          .upload(path, file, { cacheControl: '3600', upsert: false })
+
+        if (uploadError) throw uploadError
+
+        const { data: publicUrlData } = supabase.storage
+          .from('profile-photos')
+          .getPublicUrl(path)
+
+        uploadedUrls.push(publicUrlData.publicUrl)
+      }
+
+      const updatedPhotos = [...currentPhotos, ...uploadedUrls]
+
+      const { error: updateError } = await supabase
         .from('profiles')
         .update({ photos: updatedPhotos })
         .eq('id', user.id)
 
-      if (error) throw error
+      if (updateError) throw updateError
 
-      setNewPhotoUrl('')
       loadProfile()
-    } catch (error: any) {
-      setError(error.message)
+    } catch (err: any) {
+      setError(err.message || 'Failed to upload photo')
+    } finally {
+      setUploadingPhoto(false)
     }
+  }
+
+  const handlePhotoDrop = (e: React.DragEvent<HTMLLabelElement>) => {
+    e.preventDefault()
+    setIsDraggingPhoto(false)
+    if (e.dataTransfer.files?.length) {
+      handlePhotoFiles(e.dataTransfer.files)
+    }
+  }
+
+  const handlePhotoInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files?.length) {
+      handlePhotoFiles(e.target.files)
+    }
+    e.target.value = ''
   }
 
   const handleRemovePhoto = async (index: number) => {
@@ -330,22 +398,42 @@ export default function ProfilePage() {
                   </div>
                 ))}
                 {profile.photos.length < 6 && (
-                  <div className="aspect-square border-2 border-dashed border-border rounded-lg flex items-center justify-center">
-                    <Camera className="h-8 w-8 text-muted-foreground" />
-                  </div>
+                  <label
+                    htmlFor="photo-upload-input"
+                    onDragOver={(e) => { e.preventDefault(); setIsDraggingPhoto(true) }}
+                    onDragLeave={() => setIsDraggingPhoto(false)}
+                    onDrop={handlePhotoDrop}
+                    className={`aspect-square border-2 border-dashed rounded-lg flex flex-col items-center justify-center gap-1 cursor-pointer transition-colors ${
+                      isDraggingPhoto
+                        ? 'border-gold-500 bg-gold-500/10'
+                        : 'border-border hover:border-gold-500/50'
+                    }`}
+                  >
+                    {uploadingPhoto ? (
+                      <p className="text-xs text-muted-foreground">Uploading...</p>
+                    ) : (
+                      <>
+                        <Camera className="h-8 w-8 text-muted-foreground" />
+                        <p className="text-xs text-muted-foreground text-center px-2">
+                          Drag &amp; drop or click
+                        </p>
+                      </>
+                    )}
+                  </label>
                 )}
               </div>
-              <div className="flex gap-2">
-                <Input
-                  placeholder="Add photo URL"
-                  value={newPhotoUrl}
-                  onChange={(e) => setNewPhotoUrl(e.target.value)}
-                />
-                <Button onClick={handleAddPhoto} disabled={!newPhotoUrl}>
-                  <Plus className="h-4 w-4 mr-2" />
-                  Add
-                </Button>
-              </div>
+              <input
+                id="photo-upload-input"
+                type="file"
+                accept="image/jpeg,image/png,image/webp,image/gif"
+                multiple
+                className="hidden"
+                onChange={handlePhotoInputChange}
+                disabled={uploadingPhoto || profile.photos.length >= 6}
+              />
+              <p className="text-xs text-muted-foreground">
+                JPG, PNG, WEBP or GIF, up to 5MB each. {6 - profile.photos.length} slot{6 - profile.photos.length !== 1 ? 's' : ''} remaining.
+              </p>
             </CardContent>
           </Card>
 
