@@ -78,9 +78,14 @@ export default function ProfilePage() {
         .from('profiles')
         .select('*')
         .eq('id', user.id)
-        .single()
+        .maybeSingle()
 
       if (error) throw error
+
+      if (!data) {
+        setProfile(null)
+        return
+      }
 
       setProfile(data)
       setFormData({

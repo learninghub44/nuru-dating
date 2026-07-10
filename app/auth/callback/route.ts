@@ -25,7 +25,19 @@ export async function GET(request: Request) {
         },
       }
     )
-    await supabase.auth.exchangeCodeForSession(code)
+    const { data } = await supabase.auth.exchangeCodeForSession(code)
+
+    if (data.user) {
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('id', data.user.id)
+        .maybeSingle()
+
+      if (!profile) {
+        return NextResponse.redirect(new URL('/onboarding', requestUrl.origin))
+      }
+    }
   }
 
   return NextResponse.redirect(new URL('/discover', requestUrl.origin))
