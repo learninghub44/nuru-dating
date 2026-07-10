@@ -1,21 +1,22 @@
-// Sanity-checks the @opennextjs/cloudflare build output before deploying.
-// Run automatically as part of `npm run pages:build`.
+// Optional sanity-check for the @opennextjs/cloudflare Workers build output.
+// Run manually with `node scripts/postbuild-cloudflare.js` after `npm run pages:build`.
 const fs = require('fs')
 const path = require('path')
 
-const outputDir = path.join(process.cwd(), '.open-next', 'cloudflare')
+const outputDir = path.join(process.cwd(), '.open-next')
+const workerFile = path.join(outputDir, 'worker.js')
+const assetsDir = path.join(outputDir, 'assets')
 
-if (!fs.existsSync(outputDir)) {
-  console.error(`Cloudflare build output not found at ${outputDir}`)
+if (!fs.existsSync(workerFile)) {
+  console.error(`Worker bundle not found at ${workerFile}`)
   process.exit(1)
 }
 
-const entries = fs.readdirSync(outputDir)
-console.log(`Cloudflare Pages output ready at .open-next/cloudflare (${entries.length} entries):`)
-entries.forEach((entry) => console.log(`  - ${entry}`))
-
-const requiredFiles = ['_worker.js']
-const missing = requiredFiles.filter((f) => !entries.includes(f))
-if (missing.length > 0) {
-  console.warn(`Warning: expected file(s) not found in output: ${missing.join(', ')}`)
+if (!fs.existsSync(assetsDir)) {
+  console.error(`Assets directory not found at ${assetsDir}`)
+  process.exit(1)
 }
+
+console.log('Cloudflare Workers build output looks good:')
+console.log(`  - ${workerFile}`)
+console.log(`  - ${assetsDir}`)
