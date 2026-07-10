@@ -10,6 +10,7 @@ import { Badge } from '@/components/ui/badge'
 import { Heart, MessageCircle, Sparkles, Clock } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { calculateAge, formatTime } from '@/lib/utils'
+import { AppHeader } from '@/components/app-header'
 
 interface Match {
   id: string
@@ -107,24 +108,7 @@ export default function MatchesPage() {
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
-      <header className="fixed top-0 w-full z-50 glass border-b border-border">
-        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-2">
-            <Heart className="h-8 w-8 text-gold-500 fill-gold-500" />
-            <span className="text-2xl font-bold text-gold-500">Nuru</span>
-          </Link>
-          <div className="flex items-center gap-4">
-            <Link href="/discover">
-              <Button variant="ghost">Discover</Button>
-            </Link>
-            <Link href="/profile">
-              <Avatar className="h-10 w-10">
-                <AvatarFallback>U</AvatarFallback>
-              </Avatar>
-            </Link>
-          </div>
-        </div>
-      </header>
+      <AppHeader active="matches" />
 
       {/* Content */}
       <div className="pt-20 pb-24 px-4">

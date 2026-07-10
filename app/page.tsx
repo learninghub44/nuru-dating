@@ -291,6 +291,11 @@ export default function LandingPage() {
                 <li><Link href="/help" className="hover:text-gold-500">Help Center</Link></li>
                 <li><Link href="/safety" className="hover:text-gold-500">Safety Tips</Link></li>
                 <li><Link href="/contact" className="hover:text-gold-500">Contact Us</Link></li>
+                <li>
+                  <a href="mailto:support@gmail.co.ke" className="hover:text-gold-500">
+                    support@gmail.co.ke
+                  </a>
+                </li>
               </ul>
             </div>
             <div>
@@ -303,7 +308,7 @@ export default function LandingPage() {
             </div>
           </div>
           <div className="border-t border-border pt-8 text-center text-sm text-foreground/70">
-            © 2024 Nuru. All rights reserved.
+            © {new Date().getFullYear()} Nuru. All rights reserved.
           </div>
         </div>
       </footer>

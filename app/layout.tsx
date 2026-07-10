@@ -11,8 +11,25 @@ const manrope = Manrope({
 })
 
 export const metadata: Metadata = {
-  title: 'Nuru - Find Real Connections That Matter',
+  metadataBase: new URL('https://www.nurufindlove.co.ke'),
+  title: {
+    default: 'Nuru - Find Real Connections That Matter',
+    template: '%s | Nuru',
+  },
   description: 'A premium dating platform where meaningful connections begin. Discover real people, AI companions, and genuine relationships.',
+  openGraph: {
+    title: 'Nuru - Find Real Connections That Matter',
+    description: 'A premium dating platform where meaningful connections begin. Discover real people, AI companions, and genuine relationships.',
+    url: 'https://www.nurufindlove.co.ke',
+    siteName: 'Nuru',
+    locale: 'en_KE',
+    type: 'website',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Nuru - Find Real Connections That Matter',
+    description: 'A premium dating platform where meaningful connections begin.',
+  },
 }
 
 export default function RootLayout({

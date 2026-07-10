@@ -2,15 +2,15 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { Heart, Wallet, ArrowLeft, CreditCard, History, Sparkles } from 'lucide-react'
+import { Wallet, CreditCard, History, Sparkles } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { formatDate } from '@/lib/utils'
 import { CREDIT_PACKAGE_LIST, type CreditPackageId } from '@/lib/credit-packages'
 import { useToast } from '@/components/ui/toast'
+import { AppHeader } from '@/components/app-header'
 
 interface WalletData {
   id: string
@@ -183,29 +183,7 @@ export default function WalletPage() {
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
-      <header className="fixed top-0 w-full z-50 glass border-b border-border">
-        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <Link href="/discover">
-              <Button variant="ghost" size="icon">
-                <ArrowLeft className="h-5 w-5" />
-              </Button>
-            </Link>
-            <Link href="/" className="flex items-center gap-2">
-              <Heart className="h-8 w-8 text-gold-500 fill-gold-500" />
-              <span className="text-2xl font-bold text-gold-500">Nuru</span>
-            </Link>
-          </div>
-          <div className="flex items-center gap-4">
-            <Link href="/discover">
-              <Button variant="ghost">Discover</Button>
-            </Link>
-            <Link href="/matches">
-              <Button variant="ghost">Matches</Button>
-            </Link>
-          </div>
-        </div>
-      </header>
+      <AppHeader active="wallet" />
 
       {/* Content */}
       <div className="pt-20 pb-24 px-4">

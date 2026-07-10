@@ -7,9 +7,10 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
-import { Heart, ArrowLeft, Sparkles, MessageCircle } from 'lucide-react'
+import { Sparkles, MessageCircle } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { calculateAge } from '@/lib/utils'
+import { AppHeader } from '@/components/app-header'
 
 interface AICompanion {
   id: string
@@ -66,29 +67,19 @@ export default function AICompanionsPage() {
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
-      <header className="fixed top-0 w-full z-50 glass border-b border-border">
-        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <Link href="/discover">
-              <Button variant="ghost" size="icon">
-                <ArrowLeft className="h-5 w-5" />
-              </Button>
-            </Link>
-            <Link href="/" className="flex items-center gap-2">
-              <Heart className="h-8 w-8 text-gold-500 fill-gold-500" />
-              <span className="text-2xl font-bold text-gold-500">Nuru</span>
-            </Link>
-          </div>
-          <div className="flex items-center gap-4">
+      <AppHeader
+        active="companions"
+        extra={
+          <div className="hidden md:flex items-center gap-2">
             <Link href="/ai/coach">
-              <Button variant="ghost">Dating Coach</Button>
+              <Button variant="ghost" size="sm">Dating Coach</Button>
             </Link>
             <Link href="/ai/bio-generator">
-              <Button variant="ghost">Bio Generator</Button>
+              <Button variant="ghost" size="sm">Bio Generator</Button>
             </Link>
           </div>
-        </div>
-      </header>
+        }
+      />
 
       {/* Content */}
       <div className="pt-20 pb-24 px-4">

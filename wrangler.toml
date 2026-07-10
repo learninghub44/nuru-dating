@@ -9,6 +9,7 @@ binding = "ASSETS"
 
 [vars]
 NEXT_PUBLIC_APP_ENV = "production"
+NEXT_PUBLIC_APP_URL = "https://www.nurufindlove.co.ke"
 
 # Secrets (set via `wrangler secret put <NAME>` — never commit real values):
 #   NEXT_PUBLIC_SUPABASE_URL

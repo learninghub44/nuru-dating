@@ -33,7 +33,7 @@ export default function PrivacyPage() {
       <h2>Contact</h2>
       <p>
         Questions about this policy? Reach us at{' '}
-        <a href="mailto:privacy@nuru.app">privacy@nuru.app</a>.
+        <a href="mailto:support@gmail.co.ke">support@gmail.co.ke</a>.
       </p>
     </StaticPageLayout>
   )
