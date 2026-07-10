@@ -1,0 +1,15 @@
+name = "nuru-dating"
+compatibility_date = "2025-01-01"
+compatibility_flags = ["nodejs_compat"]
+pages_build_output_dir = ".open-next/cloudflare"
+
+[vars]
+NEXT_PUBLIC_APP_ENV = "production"
+
+# Secrets (set via `wrangler pages secret put <NAME>` — never commit real values):
+#   NEXT_PUBLIC_SUPABASE_URL
+#   NEXT_PUBLIC_SUPABASE_ANON_KEY
+#   SUPABASE_SERVICE_ROLE_KEY
+#   GROQ_API_KEY
+#   NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY
+#   PAYSTACK_SECRET_KEY

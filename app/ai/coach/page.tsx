@@ -61,7 +61,7 @@ export default function DatingCoachPage() {
       // Save conversation to database
       await supabase.from('ai_messages').insert({
         user_id: user.id,
-        ai_companion_id: 'coach',
+        ai_companion_id: null,
         conversation_id: 'dating-coach',
         role: 'user',
         content: userMessage,
@@ -69,7 +69,7 @@ export default function DatingCoachPage() {
 
       await supabase.from('ai_messages').insert({
         user_id: user.id,
-        ai_companion_id: 'coach',
+        ai_companion_id: null,
         conversation_id: 'dating-coach',
         role: 'assistant',
         content: data.response,

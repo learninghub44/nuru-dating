@@ -8,9 +8,11 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge'
 import { Heart, Wallet, ArrowLeft, CreditCard, History, Sparkles } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
-import { formatDate, formatTime } from '@/lib/utils'
+import { formatDate } from '@/lib/utils'
+import { CREDIT_PACKAGE_LIST, type CreditPackageId } from '@/lib/credit-packages'
+import { useToast } from '@/components/ui/toast'
 
-interface Wallet {
+interface WalletData {
   id: string
   balance: number
 }
@@ -23,26 +25,25 @@ interface Transaction {
   created_at: string
 }
 
-const CREDIT_PACKAGES = [
-  { credits: 100, price: 200, name: 'Starter' },
-  { credits: 250, price: 450, name: 'Popular' },
-  { credits: 500, price: 800, name: 'Value' },
-  { credits: 1000, price: 1500, name: 'Premium' },
-]
-
 export default function WalletPage() {
   const router = useRouter()
-  const [wallet, setWallet] = useState<Wallet | null>(null)
+  const [wallet, setWallet] = useState<WalletData | null>(null)
   const [transactions, setTransactions] = useState<Transaction[]>([])
   const [loading, setLoading] = useState(true)
-  const [purchasing, setPurchasing] = useState<number | null>(null)
+  const [purchasing, setPurchasing] = useState<CreditPackageId | null>(null)
 
   const supabase = createClient()
+  const { toast } = useToast()
 
   useEffect(() => {
     loadWallet()
-    loadTransactions()
   }, [])
+
+  useEffect(() => {
+    if (wallet?.id) {
+      loadTransactions(wallet.id)
+    }
+  }, [wallet?.id])
 
   const loadWallet = async () => {
     try {
@@ -52,6 +53,8 @@ export default function WalletPage() {
         return
       }
 
+      // Wallets are auto-created by a DB trigger on profile creation, but
+      // fall back to fetching in case an older account predates it.
       const { data, error } = await supabase
         .from('wallets')
         .select('*')
@@ -59,20 +62,7 @@ export default function WalletPage() {
         .single()
 
       if (error && error.code !== 'PGRST116') throw error
-
-      if (!data) {
-        // Create wallet
-        const { data: newWallet, error: createError } = await supabase
-          .from('wallets')
-          .insert({ user_id: user.id, balance: 0 })
-          .select()
-          .single()
-
-        if (createError) throw createError
-        setWallet(newWallet)
-      } else {
-        setWallet(data)
-      }
+      setWallet(data)
     } catch (error) {
       console.error('Error loading wallet:', error)
     } finally {
@@ -80,15 +70,12 @@ export default function WalletPage() {
     }
   }
 
-  const loadTransactions = async () => {
+  const loadTransactions = async (walletId: string) => {
     try {
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) return
-
       const { data, error } = await supabase
         .from('wallet_transactions')
         .select('*')
-        .eq('wallet_id', wallet?.id)
+        .eq('wallet_id', walletId)
         .order('created_at', { ascending: false })
         .limit(10)
 
@@ -99,86 +86,85 @@ export default function WalletPage() {
     }
   }
 
-  const handlePurchase = async (packageIndex: number) => {
-    const pkg = CREDIT_PACKAGES[packageIndex]
-    setPurchasing(packageIndex)
+  const handlePurchase = async (packageId: CreditPackageId) => {
+    setPurchasing(packageId)
 
     try {
       const { data: { user } } = await supabase.auth.getUser()
-      if (!user) throw new Error('User not found')
+      if (!user) {
+        router.push('/login')
+        return
+      }
 
-      // Initialize Paystack payment
+      // Ask the server to create a pending payment record with the
+      // authoritative price — the client never decides the amount charged.
+      const initRes = await fetch('/api/payments/initialize', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ packageId }),
+      })
+
+      if (!initRes.ok) {
+        const err = await initRes.json().catch(() => ({}))
+        throw new Error(err.error || 'Failed to start payment')
+      }
+
+      const initData = await initRes.json()
+
       const paystack = new (window as any).PaystackPop()
-      const reference = `nuru_${Date.now()}_${user.id}`
 
       paystack.newTransaction({
-        key: process.env.NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY,
-        email: user.email,
-        amount: pkg.price * 100, // Paystack expects amount in kobo
+        key: initData.publicKey,
+        email: initData.email,
+        amount: initData.amountInKobo,
         currency: 'KES',
-        reference,
+        reference: initData.reference,
         metadata: {
           custom_fields: [
-            {
-              display_name: 'Package',
-              variable_name: 'package',
-              value: pkg.name,
-            },
+            { display_name: 'Package', variable_name: 'package', value: initData.packageName },
           ],
         },
         onSuccess: async () => {
           try {
-            // Record payment
-            const { error: paymentError } = await supabase.from('payments').insert({
-              user_id: user.id,
-              amount: pkg.price,
-              currency: 'KES',
-              status: 'completed',
-              payment_method: 'paystack',
-              reference,
-              metadata: { package: pkg.name, credits: pkg.credits },
-              completed_at: new Date().toISOString(),
+            // The client's "success" callback is only a signal to check —
+            // the server re-verifies directly with Paystack before crediting.
+            const verifyRes = await fetch('/api/payments/verify', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ reference: initData.reference }),
             })
 
-            if (paymentError) throw paymentError
+            if (!verifyRes.ok) {
+              const err = await verifyRes.json().catch(() => ({}))
+              throw new Error(err.error || 'Verification failed')
+            }
 
-            // Add credits to wallet
-            const { error: walletError } = await supabase
-              .from('wallets')
-              .update({ balance: (wallet?.balance || 0) + pkg.credits })
-              .eq('id', wallet?.id)
-
-            if (walletError) throw walletError
-
-            // Record transaction
-            await supabase.from('wallet_transactions').insert({
-              wallet_id: wallet?.id,
-              type: 'purchase',
-              amount: pkg.credits,
-              description: `Purchased ${pkg.name} package`,
-              reference_id: reference,
-            })
-
-            loadWallet()
-            loadTransactions()
-            alert(`Successfully purchased ${pkg.credits} credits!`)
+            await loadWallet()
+            toast({ title: 'Success', description: 'Credits added to your wallet!' })
           } catch (error) {
-            console.error('Error processing payment:', error)
-            alert('Payment successful but failed to add credits. Please contact support.')
+            console.error('Error verifying payment:', error)
+            toast({
+              title: 'Verification pending',
+              description:
+                'Payment received but verification failed. It will be reconciled automatically — contact support if your balance is not updated shortly.',
+              variant: 'destructive',
+            })
+          } finally {
+            setPurchasing(null)
           }
         },
         onCancel: () => {
-          alert('Payment cancelled')
+          setPurchasing(null)
         },
         onError: (error: any) => {
           console.error('Payment error:', error)
-          alert('Payment failed. Please try again.')
+          toast({ title: 'Payment failed', description: 'Please try again.', variant: 'destructive' })
+          setPurchasing(null)
         },
       })
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error initiating payment:', error)
-      alert('Failed to initiate payment. Please try again.')
-    } finally {
+      toast({ title: 'Error', description: error.message || 'Failed to initiate payment. Please try again.', variant: 'destructive' })
       setPurchasing(null)
     }
   }
@@ -255,15 +241,15 @@ export default function WalletPage() {
             </CardHeader>
             <CardContent>
               <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
-                {CREDIT_PACKAGES.map((pkg, index) => (
+                {CREDIT_PACKAGE_LIST.map((pkg) => (
                   <Card
-                    key={pkg.name}
+                    key={pkg.id}
                     className={`glass-card hover:border-gold-500/50 transition-colors cursor-pointer ${
-                      pkg.name === 'Popular' ? 'border-gold-500' : ''
+                      pkg.id === 'popular' ? 'border-gold-500' : ''
                     }`}
                   >
                     <CardContent className="pt-6 text-center">
-                      {pkg.name === 'Popular' && (
+                      {pkg.id === 'popular' && (
                         <Badge className="bg-gold-500 text-black mb-2">Popular</Badge>
                       )}
                       <h3 className="text-lg font-semibold mb-2">{pkg.name}</h3>
@@ -275,15 +261,15 @@ export default function WalletPage() {
                         KES {pkg.price}
                       </div>
                       <Button
-                        onClick={() => handlePurchase(index)}
-                        disabled={purchasing === index}
+                        onClick={() => handlePurchase(pkg.id)}
+                        disabled={purchasing === pkg.id}
                         className={`w-full ${
-                          pkg.name === 'Popular'
+                          pkg.id === 'popular'
                             ? 'bg-gold-500 text-black hover:bg-gold-600'
                             : ''
                         }`}
                       >
-                        {purchasing === index ? 'Processing...' : 'Purchase'}
+                        {purchasing === pkg.id ? 'Processing...' : 'Purchase'}
                       </Button>
                     </CardContent>
                   </Card>

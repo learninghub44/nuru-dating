@@ -6,7 +6,10 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "pages:build": "next build && npx @opennextjs/cloudflare build && node scripts/postbuild-cloudflare.js",
+    "preview": "npm run pages:build && wrangler pages dev .open-next/cloudflare",
+    "deploy": "npm run pages:build && wrangler pages deploy .open-next/cloudflare"
   },
   "dependencies": {
     "next": "^15.0.0",
@@ -38,9 +41,13 @@
     "@radix-ui/react-switch": "^1.0.3",
     "date-fns": "^3.3.0",
     "react-hot-toast": "^2.4.1",
-    "zustand": "^4.5.0"
+    "zustand": "^4.5.0",
+    "server-only": "^0.0.1",
+    "isomorphic-dompurify": "^2.16.0"
   },
   "devDependencies": {
+    "@opennextjs/cloudflare": "^1.20.1",
+    "wrangler": "^4.86.0",
     "typescript": "^5.3.0",
     "@types/node": "^20.11.0",
     "@types/react": "^18.2.0",

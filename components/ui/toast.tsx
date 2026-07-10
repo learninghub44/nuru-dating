@@ -126,25 +126,73 @@ export {
   ToastAction,
 }
 
+type ToasterToast = ToastProps & {
+  id: string
+  title?: React.ReactNode
+  description?: React.ReactNode
+  action?: ToastActionElement
+}
+
+const TOAST_LIMIT = 5
+const TOAST_REMOVE_DELAY = 5000
+
+let count = 0
+function genId() {
+  count = (count + 1) % Number.MAX_SAFE_INTEGER
+  return count.toString()
+}
+
+type Listener = (toasts: ToasterToast[]) => void
+
+let memoryState: ToasterToast[] = []
+const listeners: Listener[] = []
+
+function dispatch(toasts: ToasterToast[]) {
+  memoryState = toasts
+  listeners.forEach((listener) => listener(memoryState))
+}
+
+function addToast(toast: Omit<ToasterToast, 'id'>) {
+  const id = genId()
+  const newToast: ToasterToast = { ...toast, id }
+
+  dispatch([...memoryState, newToast].slice(-TOAST_LIMIT))
+
+  setTimeout(() => {
+    dismissToast(id)
+  }, TOAST_REMOVE_DELAY)
+
+  return id
+}
+
+function dismissToast(id: string) {
+  dispatch(memoryState.filter((t) => t.id !== id))
+}
+
+function toast(props: Omit<ToasterToast, 'id'>) {
+  const id = addToast(props)
+  return {
+    id,
+    dismiss: () => dismissToast(id),
+  }
+}
+
 function useToast() {
-  const [toasts, setToasts] = React.useState<ToastProps[]>([])
+  const [toasts, setToasts] = React.useState<ToasterToast[]>(memoryState)
 
-  const toast = React.useCallback(
-    ({ ...props }: ToastProps) => {
-      setToasts((prev) => [...prev, props])
-
-      // Remove toast after duration
-      setTimeout(() => {
-        setToasts((prev) => prev.filter((t) => t !== props))
-      }, 5000)
-    },
-    []
-  )
+  React.useEffect(() => {
+    listeners.push(setToasts)
+    return () => {
+      const index = listeners.indexOf(setToasts)
+      if (index > -1) listeners.splice(index, 1)
+    }
+  }, [])
 
   return {
     toast,
     toasts,
+    dismiss: dismissToast,
   }
 }
 
-export { useToast }
+export { useToast, toast }

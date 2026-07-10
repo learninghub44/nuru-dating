@@ -10,6 +10,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Heart, MessageCircle, X, Sparkles, Filter, MapPin } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { calculateAge, formatDate } from '@/lib/utils'
+import { NotificationBell } from '@/components/notifications/NotificationBell'
 
 interface Profile {
   id: string
@@ -192,6 +193,7 @@ export default function DiscoverPage() {
             <Button variant="ghost" size="icon" onClick={() => setShowFilters(!showFilters)}>
               <Filter className="h-5 w-5" />
             </Button>
+            <NotificationBell />
             <Link href="/matches">
               <Button variant="ghost" size="icon">
                 <MessageCircle className="h-5 w-5" />

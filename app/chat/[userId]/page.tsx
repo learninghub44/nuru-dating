@@ -51,9 +51,14 @@ export default function ChatPage() {
   const [sending, setSending] = useState(false)
   const [newMessage, setNewMessage] = useState('')
   const [unlocking, setUnlocking] = useState(false)
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
   const supabase = createClient()
+
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data: { user } }) => setCurrentUserId(user?.id || null))
+  }, [])
 
   useEffect(() => {
     loadConversation()
@@ -232,47 +237,22 @@ export default function ChatPage() {
 
     setUnlocking(true)
     try {
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) throw new Error('User not found')
-
-      // Check wallet balance
-      const { data: wallet } = await supabase
-        .from('wallets')
-        .select('balance')
-        .eq('user_id', user.id)
-        .single()
-
-      if (!wallet || wallet.balance < conversation.unlock_cost) {
-        alert('Insufficient credits. Please purchase more credits.')
-        router.push('/wallet')
-        return
-      }
-
-      // Deduct credits
-      await supabase
-        .from('wallets')
-        .update({ balance: wallet.balance - conversation.unlock_cost })
-        .eq('user_id', user.id)
-
-      // Record transaction
-      await supabase.from('wallet_transactions').insert({
-        wallet_id: wallet.id,
-        type: 'spend',
-        amount: conversation.unlock_cost,
-        description: `Unlocked conversation with ${otherUser?.full_name}`,
-        reference_id: conversation.id,
+      const res = await fetch('/api/conversations/unlock', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ conversationId: conversation.id }),
       })
 
-      // Unlock conversation
-      const { error } = await supabase
-        .from('conversations')
-        .update({
-          is_unlocked: true,
-          unlocked_at: new Date().toISOString(),
-        })
-        .eq('id', conversation.id)
+      const data = await res.json()
 
-      if (error) throw error
+      if (!res.ok) {
+        if (data.error?.includes('Insufficient')) {
+          alert(data.error)
+          router.push('/wallet')
+          return
+        }
+        throw new Error(data.error || 'Failed to unlock conversation')
+      }
 
       setConversation({ ...conversation, is_unlocked: true })
     } catch (error: any) {
@@ -353,8 +333,7 @@ export default function ChatPage() {
           )}
 
           {messages.map((message) => {
-            const { data: { user } } = supabase.auth.getUser()
-            const isOwn = message.sender_id === user?.then?.(u => u.data.user?.id)
+            const isOwn = message.sender_id === currentUserId
 
             return (
               <div
