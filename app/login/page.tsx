@@ -24,14 +24,23 @@ export default function LoginPage() {
 
     try {
       const supabase = createClient()
-      const { error } = await supabase.auth.signInWithPassword({
+      const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       })
 
       if (error) throw error
 
-      router.push('/discover')
+      // Send abandoned-onboarding accounts back to finish it, rather than
+      // dumping them on /discover with no profile row (and therefore no
+      // wallet — payments would fail on a foreign-key violation).
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('id', data.user.id)
+        .maybeSingle()
+
+      router.push(profile ? '/discover' : '/onboarding')
       router.refresh()
     } catch (err: any) {
       setError(err.message || 'An error occurred during login')

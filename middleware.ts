@@ -73,17 +73,33 @@ export async function middleware(request: NextRequest) {
     }
   }
 
-  // Block banned users everywhere except the notice page itself and the
-  // ability to log out. Checking discover/matches queries alone isn't
-  // enough — a banned user could still hit any other route directly.
-  if (user && pathname !== '/banned' && !pathname.startsWith('/api/')) {
+  // Paths a signed-in user can reach even without a completed profile —
+  // onboarding itself, auth flows, and static/marketing/legal pages.
+  const ALLOWED_WITHOUT_PROFILE = new Set([
+    '/', '/about', '/careers', '/contact', '/cookies', '/help', '/press',
+    '/privacy', '/safety', '/terms', '/login', '/register',
+    '/forgot-password', '/reset-password', '/onboarding', '/banned',
+  ])
+
+  // Signing up creates a Supabase Auth user immediately, but 'profiles' (and
+  // therefore 'wallets'/'payments', which have a hard FK to profiles.id, not
+  // auth.users.id) only gets created once onboarding is completed. Without
+  // this check, someone who abandons onboarding and logs back in later lands
+  // on /discover as a fully authenticated user with no profile row at all —
+  // any payment attempt then fails on a foreign-key violation. Also blocks
+  // banned users from every route except the notice page.
+  if (user && !pathname.startsWith('/api/')) {
     const { data: profile } = await supabase
       .from('profiles')
       .select('banned')
       .eq('id', user.id)
       .maybeSingle()
 
-    if (profile?.banned) {
+    if (!profile) {
+      if (!ALLOWED_WITHOUT_PROFILE.has(pathname) && !pathname.startsWith('/auth/')) {
+        return NextResponse.redirect(new URL('/onboarding', request.url))
+      }
+    } else if (profile.banned && pathname !== '/banned') {
       return NextResponse.redirect(new URL('/banned', request.url))
     }
   }

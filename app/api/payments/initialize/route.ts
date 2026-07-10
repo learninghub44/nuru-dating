@@ -34,6 +34,23 @@ export async function POST(request: NextRequest) {
     const reference = `nuru_${Date.now()}_${user.id.slice(0, 8)}`
 
     const admin = createAdminClient()
+
+    // payments.user_id has a hard FK to profiles.id (not auth.users.id) —
+    // if onboarding was never completed there's no profile row yet, and the
+    // insert below would otherwise fail with an opaque foreign-key error.
+    const { data: profile } = await admin
+      .from('profiles')
+      .select('id')
+      .eq('id', user.id)
+      .maybeSingle()
+
+    if (!profile) {
+      return NextResponse.json(
+        { error: 'Please complete your profile before purchasing credits.' },
+        { status: 409 }
+      )
+    }
+
     const { error: insertError } = await admin.from('payments').insert({
       user_id: user.id,
       amount: pkg.price,
