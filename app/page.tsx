@@ -2,7 +2,7 @@ import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
-import { Heart, Sparkles, Shield, Zap, MessageCircle, Users, Star, Check } from 'lucide-react'
+import { Heart, Sparkles, Shield, Zap, MessageCircle, Users, Star } from 'lucide-react'
 
 export default function LandingPage() {
   return (
@@ -20,9 +20,6 @@ export default function LandingPage() {
             </Link>
             <Link href="#how-it-works" className="text-foreground/80 hover:text-gold-500 transition-colors">
               How It Works
-            </Link>
-            <Link href="#pricing" className="text-foreground/80 hover:text-gold-500 transition-colors">
-              Pricing
             </Link>
           </div>
           <div className="flex items-center gap-4">
@@ -190,6 +187,42 @@ export default function LandingPage() {
         </div>
       </section>
 
+      {/* Big Photo Gallery */}
+      <section className="py-20 px-4">
+        <div className="container mx-auto">
+          <div className="text-center mb-16">
+            <h2 className="text-4xl font-bold mb-4">Real People, Real Chemistry</h2>
+            <p className="text-foreground/70 max-w-2xl mx-auto">
+              Thousands of ladies and gentlemen are already here — your love destiny could be next
+            </p>
+          </div>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 max-w-6xl mx-auto">
+            {[
+              'https://randomuser.me/api/portraits/women/44.jpg',
+              'https://randomuser.me/api/portraits/men/32.jpg',
+              'https://randomuser.me/api/portraits/women/65.jpg',
+              'https://randomuser.me/api/portraits/men/76.jpg',
+              'https://randomuser.me/api/portraits/men/22.jpg',
+              'https://randomuser.me/api/portraits/women/8.jpg',
+              'https://randomuser.me/api/portraits/women/50.jpg',
+              'https://randomuser.me/api/portraits/men/58.jpg',
+            ].map((src, i) => (
+              <div
+                key={i}
+                className="relative aspect-[3/4] rounded-2xl overflow-hidden border border-gold-500/30 shadow-lg shadow-gold-500/10 group"
+              >
+                <img
+                  src={src}
+                  alt="Nuru member"
+                  className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent" />
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
       {/* How It Works */}
       <section id="how-it-works" className="py-20 px-4 bg-gold-500/5">
         <div className="container mx-auto">
@@ -227,104 +260,6 @@ export default function LandingPage() {
                 When you match, start chatting and build connections
               </p>
             </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Pricing Section */}
-      <section id="pricing" className="py-20 px-4">
-        <div className="container mx-auto">
-          <div className="text-center mb-16">
-            <h2 className="text-4xl font-bold mb-4">Credit Packages</h2>
-            <p className="text-foreground/70 max-w-2xl mx-auto">
-              Purchase credits to unlock premium features
-            </p>
-          </div>
-          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 max-w-5xl mx-auto">
-            <Card className="glass-card hover:border-gold-500/50 transition-colors">
-              <CardContent className="pt-6 text-center">
-                <h3 className="text-lg font-semibold mb-2">Starter</h3>
-                <div className="text-3xl font-bold text-gold-500 mb-2">100</div>
-                <div className="text-foreground/70 mb-4">Credits</div>
-                <ul className="text-sm text-foreground/70 space-y-2 mb-6">
-                  <li className="flex items-center justify-center gap-2">
-                    <Check className="h-4 w-4 text-gold-500" />
-                    Unlock 1 conversation
-                  </li>
-                  <li className="flex items-center justify-center gap-2">
-                    <Check className="h-4 w-4 text-gold-500" />
-                    5 Super likes
-                  </li>
-                </ul>
-                <Button variant="outline" className="w-full">Purchase</Button>
-              </CardContent>
-            </Card>
-            <Card className="glass-card hover:border-gold-500/50 transition-colors">
-              <CardContent className="pt-6 text-center">
-                <h3 className="text-lg font-semibold mb-2">Popular</h3>
-                <div className="text-3xl font-bold text-gold-500 mb-2">250</div>
-                <div className="text-foreground/70 mb-4">Credits</div>
-                <ul className="text-sm text-foreground/70 space-y-2 mb-6">
-                  <li className="flex items-center justify-center gap-2">
-                    <Check className="h-4 w-4 text-gold-500" />
-                    Unlock 2 conversations
-                  </li>
-                  <li className="flex items-center justify-center gap-2">
-                    <Check className="h-4 w-4 text-gold-500" />
-                    12 Super likes
-                  </li>
-                  <li className="flex items-center justify-center gap-2">
-                    <Check className="h-4 w-4 text-gold-500" />
-                    1 Profile boost
-                  </li>
-                </ul>
-                <Button variant="gold" className="w-full bg-gold-500 text-black hover:bg-gold-600">Purchase</Button>
-              </CardContent>
-            </Card>
-            <Card className="glass-card hover:border-gold-500/50 transition-colors">
-              <CardContent className="pt-6 text-center">
-                <h3 className="text-lg font-semibold mb-2">Value</h3>
-                <div className="text-3xl font-bold text-gold-500 mb-2">500</div>
-                <div className="text-foreground/70 mb-4">Credits</div>
-                <ul className="text-sm text-foreground/70 space-y-2 mb-6">
-                  <li className="flex items-center justify-center gap-2">
-                    <Check className="h-4 w-4 text-gold-500" />
-                    Unlock 5 conversations
-                  </li>
-                  <li className="flex items-center justify-center gap-2">
-                    <Check className="h-4 w-4 text-gold-500" />
-                    25 Super likes
-                  </li>
-                  <li className="flex items-center justify-center gap-2">
-                    <Check className="h-4 w-4 text-gold-500" />
-                    3 Profile boosts
-                  </li>
-                </ul>
-                <Button variant="outline" className="w-full">Purchase</Button>
-              </CardContent>
-            </Card>
-            <Card className="glass-card hover:border-gold-500/50 transition-colors">
-              <CardContent className="pt-6 text-center">
-                <h3 className="text-lg font-semibold mb-2">Premium</h3>
-                <div className="text-3xl font-bold text-gold-500 mb-2">1000</div>
-                <div className="text-foreground/70 mb-4">Credits</div>
-                <ul className="text-sm text-foreground/70 space-y-2 mb-6">
-                  <li className="flex items-center justify-center gap-2">
-                    <Check className="h-4 w-4 text-gold-500" />
-                    Unlock 10 conversations
-                  </li>
-                  <li className="flex items-center justify-center gap-2">
-                    <Check className="h-4 w-4 text-gold-500" />
-                    50 Super likes
-                  </li>
-                  <li className="flex items-center justify-center gap-2">
-                    <Check className="h-4 w-4 text-gold-500" />
-                    10 Profile boosts
-                  </li>
-                </ul>
-                <Button variant="outline" className="w-full">Purchase</Button>
-              </CardContent>
-            </Card>
           </div>
         </div>
       </section>
