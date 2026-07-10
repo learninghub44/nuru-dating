@@ -12,6 +12,32 @@ import { calculateAge } from '@/lib/utils'
 
 const MIN_AGE = 18
 
+const LOCATIONS = [
+  'Nairobi', 'Mombasa', 'Kisumu', 'Nakuru', 'Eldoret', 'Kisii', 'Bomet',
+  'Thika', 'Nyeri', 'Machakos', 'Kakamega', 'Kericho', 'Meru', 'Naivasha',
+  'Malindi', 'Garissa', 'Kitale', 'Nyahururu', 'Voi', 'Diaspora', 'Other',
+]
+
+const OCCUPATIONS = [
+  'Student', 'Software Engineer', 'Teacher', 'Doctor / Nurse',
+  'Entrepreneur / Business Owner', 'Engineer', 'Sales / Marketing',
+  'Finance / Accounting', 'Government Employee', 'Artist / Creative',
+  'Farmer', 'Driver', 'Unemployed', 'Other',
+]
+
+const EDUCATION_LEVELS = [
+  'High School', 'Diploma / College', "Bachelor's Degree",
+  "Master's Degree", 'Doctorate', 'Other',
+]
+
+const HEIGHTS = Array.from({ length: 71 }, (_, i) => 140 + i) // 140cm - 210cm
+
+const INTERESTS = [
+  'Travel', 'Music', 'Sports', 'Reading', 'Movies', 'Cooking',
+  'Fitness', 'Gaming', 'Art', 'Photography', 'Dancing', 'Hiking',
+  'Fashion', 'Tech', 'Church', 'Business', 'Food', 'Nature',
+]
+
 export default function OnboardingPage() {
   const router = useRouter()
   const [step, setStep] = useState(1)
@@ -34,6 +60,9 @@ export default function OnboardingPage() {
     interests: [] as string[],
   })
 
+  const [customLocation, setCustomLocation] = useState('')
+  const [customOccupation, setCustomOccupation] = useState('')
+
   const handleGenderSelect = (gender: string) => {
     setFormData({ ...formData, gender })
   }
@@ -44,6 +73,15 @@ export default function OnboardingPage() {
       interestedIn: prev.interestedIn.includes(interest)
         ? prev.interestedIn.filter(i => i !== interest)
         : [...prev.interestedIn, interest]
+    }))
+  }
+
+  const handleInterestToggle = (interest: string) => {
+    setFormData(prev => ({
+      ...prev,
+      interests: prev.interests.includes(interest)
+        ? prev.interests.filter(i => i !== interest)
+        : [...prev.interests, interest]
     }))
   }
 
@@ -71,6 +109,9 @@ export default function OnboardingPage() {
         throw new Error('User not found')
       }
 
+      const resolvedLocation = formData.location === 'Other' ? customLocation.trim() : formData.location
+      const resolvedOccupation = formData.occupation === 'Other' ? customOccupation.trim() : formData.occupation
+
       const { error } = await supabase.from('profiles').insert({
         id: user.id,
         email: user.email,
@@ -78,9 +119,9 @@ export default function OnboardingPage() {
         birth_date: formData.birthDate,
         gender: formData.gender,
         interested_in: formData.interestedIn,
-        location: formData.location,
+        location: resolvedLocation,
         bio: formData.bio,
-        occupation: formData.occupation,
+        occupation: resolvedOccupation,
         education: formData.education,
         height: formData.height ? parseInt(formData.height) : null,
         body_type: formData.bodyType || null,
@@ -114,6 +155,10 @@ export default function OnboardingPage() {
       return
     }
     if (step === 3 && !formData.location) {
+      setError('Please select your location')
+      return
+    }
+    if (step === 3 && formData.location === 'Other' && !customLocation.trim()) {
       setError('Please enter your location')
       return
     }
@@ -234,14 +279,27 @@ export default function OnboardingPage() {
             <div className="space-y-6">
               <div className="space-y-2">
                 <Label htmlFor="location">Location *</Label>
-                <Input
+                <select
                   id="location"
-                  type="text"
-                  placeholder="Nairobi, Kenya"
+                  className="flex h-10 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                   value={formData.location}
                   onChange={(e) => setFormData({ ...formData, location: e.target.value })}
                   required
-                />
+                >
+                  <option value="">Select your location...</option>
+                  {LOCATIONS.map((loc) => (
+                    <option key={loc} value={loc}>{loc}</option>
+                  ))}
+                </select>
+                {formData.location === 'Other' && (
+                  <Input
+                    type="text"
+                    placeholder="Enter your location"
+                    value={customLocation}
+                    onChange={(e) => setCustomLocation(e.target.value)}
+                    className="mt-2"
+                  />
+                )}
               </div>
 
               <div className="space-y-2">
@@ -271,36 +329,57 @@ export default function OnboardingPage() {
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="occupation">Occupation</Label>
-                  <Input
+                  <select
                     id="occupation"
-                    type="text"
-                    placeholder="Software Engineer"
+                    className="flex h-10 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                     value={formData.occupation}
                     onChange={(e) => setFormData({ ...formData, occupation: e.target.value })}
-                  />
+                  >
+                    <option value="">Select...</option>
+                    {OCCUPATIONS.map((occ) => (
+                      <option key={occ} value={occ}>{occ}</option>
+                    ))}
+                  </select>
+                  {formData.occupation === 'Other' && (
+                    <Input
+                      type="text"
+                      placeholder="Enter your occupation"
+                      value={customOccupation}
+                      onChange={(e) => setCustomOccupation(e.target.value)}
+                      className="mt-2"
+                    />
+                  )}
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="education">Education</Label>
-                  <Input
+                  <select
                     id="education"
-                    type="text"
-                    placeholder="University"
+                    className="flex h-10 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                     value={formData.education}
                     onChange={(e) => setFormData({ ...formData, education: e.target.value })}
-                  />
+                  >
+                    <option value="">Select...</option>
+                    {EDUCATION_LEVELS.map((level) => (
+                      <option key={level} value={level}>{level}</option>
+                    ))}
+                  </select>
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="height">Height (cm)</Label>
-                  <Input
+                  <select
                     id="height"
-                    type="number"
-                    placeholder="175"
+                    className="flex h-10 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                     value={formData.height}
                     onChange={(e) => setFormData({ ...formData, height: e.target.value })}
-                  />
+                  >
+                    <option value="">Select...</option>
+                    {HEIGHTS.map((h) => (
+                      <option key={h} value={h}>{h} cm</option>
+                    ))}
+                  </select>
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="bodyType">Body Type</Label>
@@ -367,14 +446,23 @@ export default function OnboardingPage() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="interests">Interests (comma separated)</Label>
-                <Input
-                  id="interests"
-                  type="text"
-                  placeholder="Travel, Music, Sports, Reading"
-                  value={formData.interests.join(', ')}
-                  onChange={(e) => setFormData({ ...formData, interests: e.target.value.split(',').map(i => i.trim()).filter(Boolean) })}
-                />
+                <Label>Interests (select all that apply)</Label>
+                <div className="grid grid-cols-3 gap-2">
+                  {INTERESTS.map((interest) => (
+                    <button
+                      key={interest}
+                      type="button"
+                      onClick={() => handleInterestToggle(interest)}
+                      className={`p-2 text-sm rounded-lg border-2 transition-colors ${
+                        formData.interests.includes(interest)
+                          ? 'border-gold-500 bg-gold-500/10 text-gold-500'
+                          : 'border-border hover:border-gold-500/50'
+                      }`}
+                    >
+                      {interest}
+                    </button>
+                  ))}
+                </div>
               </div>
 
               <div className="flex gap-3">
