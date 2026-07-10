@@ -24,7 +24,7 @@ export default function RootLayout({
     <html lang="en" className="dark">
       <body className={manrope.variable}>
         <Script
-          src="https://js.paystack.co/v1/inline.js"
+          src="https://js.paystack.co/v2/inline.js"
           strategy="afterInteractive"
         />
         {children}
