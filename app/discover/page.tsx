@@ -27,6 +27,7 @@ interface Profile {
 export default function DiscoverPage() {
   const router = useRouter()
   const [profiles, setProfiles] = useState<Profile[]>([])
+  const [ownProfile, setOwnProfile] = useState<Profile | null>(null)
   const [loading, setLoading] = useState(true)
   const [currentIndex, setCurrentIndex] = useState(0)
   const [showFilters, setShowFilters] = useState(false)
@@ -50,6 +51,16 @@ export default function DiscoverPage() {
         router.push('/login')
         return
       }
+
+      // Own profile is fetched independently of filters, so the header
+      // avatar is always correct even when the discover feed is empty.
+      const { data: ownData } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', user.id)
+        .single()
+
+      setOwnProfile(ownData ?? null)
 
       let query = supabase
         .from('profiles')
@@ -127,62 +138,13 @@ export default function DiscoverPage() {
   }
 
   const currentProfile = profiles[currentIndex]
-
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gold-500 mx-auto mb-4" />
-          <p className="text-muted-foreground">Loading profiles...</p>
-        </div>
-      </div>
-    )
-  }
-
-  if (profiles.length === 0) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center p-4">
-        <Card className="max-w-md glass-card">
-          <CardContent className="pt-6 text-center">
-            <Heart className="h-12 w-12 text-gold-500 mx-auto mb-4" />
-            <h2 className="text-xl font-semibold mb-2">No profiles found</h2>
-            <p className="text-muted-foreground mb-4">
-              Try adjusting your filters or check back later for new profiles.
-            </p>
-            <Button
-              onClick={() => setFilters({ gender: '', location: '', minAge: 18, maxAge: 100 })}
-              variant="outline"
-            >
-              Reset Filters
-            </Button>
-          </CardContent>
-        </Card>
-      </div>
-    )
-  }
-
-  if (currentIndex >= profiles.length) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center p-4">
-        <Card className="max-w-md glass-card">
-          <CardContent className="pt-6 text-center">
-            <Heart className="h-12 w-12 text-gold-500 mx-auto mb-4" />
-            <h2 className="text-xl font-semibold mb-2">You've seen all profiles</h2>
-            <p className="text-muted-foreground mb-4">
-              Check back later for new matches!
-            </p>
-            <Button onClick={() => setCurrentIndex(0)} variant="outline">
-              Start Over
-            </Button>
-          </CardContent>
-        </Card>
-      </div>
-    )
-  }
+  const hasNoProfiles = !loading && profiles.length === 0
+  const hasExhaustedFeed = !loading && profiles.length > 0 && currentIndex >= profiles.length
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Header */}
+      {/* Header — always rendered, regardless of loading/empty/exhausted/card state,
+          so a user can never get stuck without a way back to profile/matches/logout */}
       <header className="fixed top-0 w-full z-50 glass border-b border-border">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <Link href="/" className="flex items-center gap-2">
@@ -201,8 +163,10 @@ export default function DiscoverPage() {
             </Link>
             <Link href="/profile">
               <Avatar className="h-10 w-10">
-                <AvatarImage src={currentProfile?.photos[0]} />
-                <AvatarFallback>U</AvatarFallback>
+                <AvatarImage src={ownProfile?.photos?.[0]} />
+                <AvatarFallback>
+                  {ownProfile?.full_name?.charAt(0) || 'U'}
+                </AvatarFallback>
               </Avatar>
             </Link>
           </div>
@@ -264,97 +228,146 @@ export default function DiscoverPage() {
         </div>
       )}
 
-      {/* Profile Card */}
-      <div className="pt-20 pb-24 px-4">
-        <div className="container mx-auto max-w-md">
-          <Card className="glass-card overflow-hidden">
-            <div className="relative aspect-[3/4]">
-              {currentProfile.photos[0] ? (
-                <img
-                  src={currentProfile.photos[0]}
-                  alt={currentProfile.full_name}
-                  className="w-full h-full object-cover"
-                />
-              ) : (
-                <div className="w-full h-full bg-muted flex items-center justify-center">
-                  <Avatar className="h-32 w-32">
-                    <AvatarFallback className="text-4xl">
-                      {currentProfile.full_name?.charAt(0) || 'U'}
-                    </AvatarFallback>
-                  </Avatar>
-                </div>
-              )}
-              
-              {/* Profile Info Overlay */}
-              <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-6">
-                <div className="flex items-center gap-2 mb-2">
-                  <h2 className="text-2xl font-bold text-white">
-                    {currentProfile.full_name}
-                  </h2>
-                  {currentProfile.verified && (
-                    <Badge className="bg-gold-500 text-black">Verified</Badge>
-                  )}
-                  {currentProfile.is_ai_companion && (
-                    <Badge variant="outline" className="border-gold-500 text-gold-500">
-                      <Sparkles className="h-3 w-3 mr-1" />
-                      AI
-                    </Badge>
-                  )}
-                </div>
-                <div className="flex items-center gap-4 text-white/80 mb-2">
-                  <span>{calculateAge(currentProfile.birth_date)} years old</span>
-                  <span className="flex items-center gap-1">
-                    <MapPin className="h-4 w-4" />
-                    {currentProfile.location}
-                  </span>
-                </div>
-                {currentProfile.bio && (
-                  <p className="text-white/90 line-clamp-2">{currentProfile.bio}</p>
-                )}
-              </div>
-            </div>
-
-            {/* Action Buttons */}
-            <div className="p-4 flex items-center justify-center gap-4">
-              <Button
-                variant="outline"
-                size="icon"
-                className="h-14 w-14 rounded-full"
-                onClick={handleDislike}
-              >
-                <X className="h-6 w-6" />
-              </Button>
-              <Button
-                variant="outline"
-                size="icon"
-                className="h-12 w-12 rounded-full"
-                onClick={handleSuperLike}
-              >
-                <Sparkles className="h-5 w-5 text-gold-500" />
-              </Button>
-              <Button
-                size="icon"
-                className="h-14 w-14 rounded-full bg-gold-500 text-black hover:bg-gold-600"
-                onClick={handleLike}
-              >
-                <Heart className="h-6 w-6 fill-current" />
-              </Button>
-            </div>
-          </Card>
-
-          {/* Progress Indicator */}
-          <div className="flex justify-center gap-2 mt-4">
-            {profiles.map((_, index) => (
-              <div
-                key={index}
-                className={`h-1 rounded-full transition-colors ${
-                  index === currentIndex ? 'bg-gold-500 w-8' : 'bg-muted w-1'
-                }`}
-              />
-            ))}
+      {/* Body — swaps between loading / empty / exhausted / card states,
+          header above always stays put */}
+      {loading && (
+        <div className="pt-20 min-h-screen flex items-center justify-center">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gold-500 mx-auto mb-4" />
+            <p className="text-muted-foreground">Loading profiles...</p>
           </div>
         </div>
-      </div>
+      )}
+
+      {hasNoProfiles && (
+        <div className="pt-20 min-h-screen flex items-center justify-center p-4">
+          <Card className="max-w-md glass-card">
+            <CardContent className="pt-6 text-center">
+              <Heart className="h-12 w-12 text-gold-500 mx-auto mb-4" />
+              <h2 className="text-xl font-semibold mb-2">No profiles found</h2>
+              <p className="text-muted-foreground mb-4">
+                Try adjusting your filters or check back later for new profiles.
+              </p>
+              <Button
+                onClick={() => setFilters({ gender: '', location: '', minAge: 18, maxAge: 100 })}
+                variant="outline"
+              >
+                Reset Filters
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {hasExhaustedFeed && (
+        <div className="pt-20 min-h-screen flex items-center justify-center p-4">
+          <Card className="max-w-md glass-card">
+            <CardContent className="pt-6 text-center">
+              <Heart className="h-12 w-12 text-gold-500 mx-auto mb-4" />
+              <h2 className="text-xl font-semibold mb-2">You've seen all profiles</h2>
+              <p className="text-muted-foreground mb-4">
+                Check back later for new matches!
+              </p>
+              <Button onClick={() => setCurrentIndex(0)} variant="outline">
+                Start Over
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {!loading && currentProfile && (
+        <div className="pt-20 pb-24 px-4">
+          <div className="container mx-auto max-w-md">
+            <Card className="glass-card overflow-hidden">
+              <div className="relative aspect-[3/4]">
+                {currentProfile.photos[0] ? (
+                  <img
+                    src={currentProfile.photos[0]}
+                    alt={currentProfile.full_name}
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <div className="w-full h-full bg-muted flex items-center justify-center">
+                    <Avatar className="h-32 w-32">
+                      <AvatarFallback className="text-4xl">
+                        {currentProfile.full_name?.charAt(0) || 'U'}
+                      </AvatarFallback>
+                    </Avatar>
+                  </div>
+                )}
+
+                {/* Profile Info Overlay */}
+                <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-6">
+                  <div className="flex items-center gap-2 mb-2">
+                    <h2 className="text-2xl font-bold text-white">
+                      {currentProfile.full_name}
+                    </h2>
+                    {currentProfile.verified && (
+                      <Badge className="bg-gold-500 text-black">Verified</Badge>
+                    )}
+                    {currentProfile.is_ai_companion && (
+                      <Badge variant="outline" className="border-gold-500 text-gold-500">
+                        <Sparkles className="h-3 w-3 mr-1" />
+                        AI
+                      </Badge>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-4 text-white/80 mb-2">
+                    <span>{calculateAge(currentProfile.birth_date)} years old</span>
+                    <span className="flex items-center gap-1">
+                      <MapPin className="h-4 w-4" />
+                      {currentProfile.location}
+                    </span>
+                  </div>
+                  {currentProfile.bio && (
+                    <p className="text-white/90 line-clamp-2">{currentProfile.bio}</p>
+                  )}
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="p-4 flex items-center justify-center gap-4">
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="h-14 w-14 rounded-full"
+                  onClick={handleDislike}
+                >
+                  <X className="h-6 w-6" />
+                </Button>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="h-12 w-12 rounded-full"
+                  onClick={handleSuperLike}
+                >
+                  <Sparkles className="h-5 w-5 text-gold-500" />
+                </Button>
+                <Button
+                  size="icon"
+                  className="h-14 w-14 rounded-full bg-gold-500 text-black hover:bg-gold-600"
+                  onClick={handleLike}
+                >
+                  <Heart className="h-6 w-6 fill-current" />
+                </Button>
+              </div>
+            </Card>
+
+            {/* Progress Indicator */}
+            <div className="flex justify-center gap-2 mt-4">
+              {profiles.map((_, index) => (
+                <div
+                  key={index}
+                  className={`h-1 rounded-full transition-colors ${
+                    index === currentIndex ? 'bg-gold-500 w-8' : 'bg-muted w-1'
+                  }`}
+                />
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
