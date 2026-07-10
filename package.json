@@ -4,12 +4,13 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "next build && npx opennextjs-cloudflare build",
+    "next:build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "pages:build": "next build && npx opennextjs-cloudflare build",
-    "preview": "npm run pages:build && wrangler dev",
-    "deploy": "npm run pages:build && wrangler deploy"
+    "pages:build": "npm run build",
+    "preview": "npm run build && wrangler dev",
+    "deploy": "npm run build && wrangler deploy"
   },
   "dependencies": {
     "next": "^15.0.0",

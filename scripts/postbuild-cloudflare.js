@@ -1,5 +1,5 @@
 // Optional sanity-check for the @opennextjs/cloudflare Workers build output.
-// Run manually with `node scripts/postbuild-cloudflare.js` after `npm run pages:build`.
+// Run manually with `node scripts/postbuild-cloudflare.js` after `npm run build`.
 const fs = require('fs')
 const path = require('path')
 
