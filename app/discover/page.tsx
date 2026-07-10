@@ -30,6 +30,8 @@ export default function DiscoverPage() {
   const [ownProfile, setOwnProfile] = useState<Profile | null>(null)
   const [loading, setLoading] = useState(true)
   const [currentIndex, setCurrentIndex] = useState(0)
+  const [matchedProfile, setMatchedProfile] = useState<Profile | null>(null)
+  const [actionError, setActionError] = useState('')
   const [showFilters, setShowFilters] = useState(false)
   const [filters, setFilters] = useState({
     gender: '',
@@ -62,11 +64,24 @@ export default function DiscoverPage() {
 
       setOwnProfile(ownData ?? null)
 
+      // Don't resurface people the user has already liked/passed on —
+      // once a like is recorded there's no reason to see them in the feed again.
+      const { data: myLikes } = await supabase
+        .from('likes')
+        .select('liked_id')
+        .eq('liker_id', user.id)
+
+      const likedIds = (myLikes || []).map((l) => l.liked_id)
+
       let query = supabase
         .from('profiles')
         .select('*')
         .neq('id', user.id)
         .not('photos', 'eq', '{}')
+
+      if (likedIds.length > 0) {
+        query = query.not('id', 'in', `(${likedIds.join(',')})`)
+      }
 
       if (filters.gender) {
         query = query.eq('gender', filters.gender)
@@ -95,46 +110,61 @@ export default function DiscoverPage() {
     }
   }
 
-  const handleLike = async () => {
+  const likeCurrentProfile = async (isSuperLike: boolean) => {
     if (currentIndex >= profiles.length) return
 
     const profile = profiles[currentIndex]
     const supabase = createClient()
+    setActionError('')
 
     try {
-      await supabase.from('likes').insert({
-        liker_id: (await supabase.auth.getUser()).data.user?.id,
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
+
+      const { error: likeError } = await supabase.from('likes').insert({
+        liker_id: user.id,
         liked_id: profile.id,
-        is_super_like: false,
+        is_super_like: isSuperLike,
       })
 
+      // 23505 = unique constraint violation (already liked this person before) — harmless, ignore.
+      if (likeError && likeError.code !== '23505') throw likeError
+
+      // Did they already like us back? If so, it's a match.
+      const { data: reciprocalLike } = await supabase
+        .from('likes')
+        .select('id')
+        .eq('liker_id', profile.id)
+        .eq('liked_id', user.id)
+        .maybeSingle()
+
+      if (reciprocalLike) {
+        // Sort the pair so the match row is identical no matter which of the
+        // two users' clients inserts it first — avoids duplicate match rows
+        // from a race between both sides liking at nearly the same time.
+        const [user1_id, user2_id] = [user.id, profile.id].sort()
+
+        const { error: matchError } = await supabase
+          .from('matches')
+          .insert({ user1_id, user2_id })
+
+        if (matchError && matchError.code !== '23505') throw matchError
+
+        setMatchedProfile(profile)
+      }
+
       setCurrentIndex(currentIndex + 1)
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error liking profile:', error)
+      setActionError('Something went wrong. Please try again.')
     }
   }
+
+  const handleLike = () => likeCurrentProfile(false)
+  const handleSuperLike = () => likeCurrentProfile(true)
 
   const handleDislike = () => {
     setCurrentIndex(currentIndex + 1)
-  }
-
-  const handleSuperLike = async () => {
-    if (currentIndex >= profiles.length) return
-
-    const profile = profiles[currentIndex]
-    const supabase = createClient()
-
-    try {
-      await supabase.from('likes').insert({
-        liker_id: (await supabase.auth.getUser()).data.user?.id,
-        liked_id: profile.id,
-        is_super_like: true,
-      })
-
-      setCurrentIndex(currentIndex + 1)
-    } catch (error) {
-      console.error('Error super liking profile:', error)
-    }
   }
 
   const currentProfile = profiles[currentIndex]
@@ -225,6 +255,46 @@ export default function DiscoverPage() {
               </div>
             </div>
           </div>
+        </div>
+      )}
+
+      {actionError && (
+        <div className="fixed top-20 left-0 right-0 z-40 flex justify-center px-4">
+          <div className="text-sm text-destructive bg-destructive/10 border border-destructive/30 px-4 py-2 rounded-lg">
+            {actionError}
+          </div>
+        </div>
+      )}
+
+      {/* Match celebration modal */}
+      {matchedProfile && (
+        <div className="fixed inset-0 z-[60] bg-black/80 flex items-center justify-center p-4">
+          <Card className="glass-card max-w-sm w-full">
+            <CardContent className="pt-8 pb-6 text-center">
+              <Heart className="h-14 w-14 text-gold-500 fill-gold-500 mx-auto mb-4" />
+              <h2 className="text-2xl font-bold mb-1">It's a Match!</h2>
+              <p className="text-muted-foreground mb-6">
+                You and {matchedProfile.full_name} liked each other.
+              </p>
+              <Avatar className="h-24 w-24 mx-auto mb-6">
+                <AvatarImage src={matchedProfile.photos?.[0]} />
+                <AvatarFallback className="text-3xl">
+                  {matchedProfile.full_name?.charAt(0) || 'U'}
+                </AvatarFallback>
+              </Avatar>
+              <div className="flex flex-col gap-2">
+                <Link href={`/chat/${matchedProfile.id}`}>
+                  <Button className="w-full bg-gold-500 text-black hover:bg-gold-600">
+                    <MessageCircle className="h-4 w-4 mr-2" />
+                    Send a Message
+                  </Button>
+                </Link>
+                <Button variant="outline" className="w-full" onClick={() => setMatchedProfile(null)}>
+                  Keep Swiping
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
         </div>
       )}
 
