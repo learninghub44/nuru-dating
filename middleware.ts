@@ -73,6 +73,21 @@ export async function middleware(request: NextRequest) {
     }
   }
 
+  // Block banned users everywhere except the notice page itself and the
+  // ability to log out. Checking discover/matches queries alone isn't
+  // enough — a banned user could still hit any other route directly.
+  if (user && pathname !== '/banned' && !pathname.startsWith('/api/')) {
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('banned')
+      .eq('id', user.id)
+      .maybeSingle()
+
+    if (profile?.banned) {
+      return NextResponse.redirect(new URL('/banned', request.url))
+    }
+  }
+
   // Guard the admin dashboard at the edge (defense in depth; each admin
   // page/API route still re-checks the admins table server-side).
   if (pathname.startsWith('/admin')) {

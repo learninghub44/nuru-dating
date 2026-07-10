@@ -78,6 +78,7 @@ export default function DiscoverPage() {
         .select('*')
         .neq('id', user.id)
         .not('photos', 'eq', '{}')
+        .eq('banned', false)
 
       if (likedIds.length > 0) {
         query = query.not('id', 'in', `(${likedIds.join(',')})`)
