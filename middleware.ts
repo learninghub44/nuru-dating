@@ -101,6 +101,22 @@ export async function middleware(request: NextRequest) {
       }
     } else if (profile.banned && pathname !== '/banned') {
       return NextResponse.redirect(new URL('/banned', request.url))
+    } else if (!profile.banned && !pathname.startsWith('/admin')) {
+      // Credit gate: a completed, non-banned profile still can't reach any
+      // in-app screen — Discover included — until they've bought credits.
+      // /wallet itself (plus auth/static/legal pages) stays reachable so
+      // there's a way to actually buy them.
+      if (!ALLOWED_WITHOUT_PROFILE.has(pathname) && pathname !== '/wallet') {
+        const { data: wallet } = await supabase
+          .from('wallets')
+          .select('balance')
+          .eq('user_id', user.id)
+          .maybeSingle()
+
+        if (!wallet || wallet.balance <= 0) {
+          return NextResponse.redirect(new URL('/wallet', request.url))
+        }
+      }
     }
   }
 
