@@ -58,6 +58,7 @@ export default function OnboardingPage() {
     drinking: '',
     smoking: '',
     interests: [] as string[],
+    whatsappNumber: '',
   })
 
   const [customLocation, setCustomLocation] = useState('')
@@ -129,6 +130,7 @@ export default function OnboardingPage() {
         drinking: formData.drinking || null,
         smoking: formData.smoking || null,
         interests: formData.interests,
+        whatsapp_number: formData.whatsappNumber.trim() || null,
       })
 
       if (error) throw error
@@ -179,7 +181,7 @@ export default function OnboardingPage() {
           </div>
           <CardTitle className="text-2xl">Complete your profile</CardTitle>
           <CardDescription>
-            Step {step} of 4 - Tell us about yourself
+            Step {step} of 5 - Tell us about yourself
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -463,6 +465,35 @@ export default function OnboardingPage() {
                     </button>
                   ))}
                 </div>
+              </div>
+
+              <div className="flex gap-3">
+                <Button onClick={prevStep} variant="outline" className="flex-1">
+                  <ArrowLeft className="mr-2 h-4 w-4" /> Back
+                </Button>
+                <Button onClick={nextStep} className="flex-1 bg-gold-500 text-black hover:bg-gold-600">
+                  Next <ArrowRight className="ml-2 h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {step === 5 && (
+            <div className="space-y-6">
+              <div className="space-y-2">
+                <Label htmlFor="whatsappNumber">WhatsApp Number (optional)</Label>
+                <Input
+                  id="whatsappNumber"
+                  type="tel"
+                  placeholder="e.g. +254712345678"
+                  value={formData.whatsappNumber}
+                  onChange={(e) => setFormData({ ...formData, whatsappNumber: e.target.value })}
+                />
+                <p className="text-sm text-muted-foreground">
+                  Matches can unlock this to continue chatting with you on WhatsApp.
+                  It stays hidden until they do — you can also add or change it later
+                  from your profile.
+                </p>
               </div>
 
               <div className="flex gap-3">

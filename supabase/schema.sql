@@ -28,6 +28,7 @@ CREATE TABLE profiles (
   verified BOOLEAN DEFAULT FALSE,
   is_ai_companion BOOLEAN DEFAULT FALSE,
   ai_companion_id UUID,
+  whatsapp_number TEXT,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
@@ -62,12 +63,15 @@ CREATE TABLE matches (
 );
 
 -- Conversations table
--- Chatting is open as soon as two profiles match — there's no upfront
--- "unlock this conversation" paywall. Credits are instead charged per
--- message sent (see MESSAGE_CREDIT_COST / spend_credits in policies.sql).
+-- Chatting in-app is free and unlimited as soon as two profiles match.
+-- The paid action is unlocking a match's WhatsApp contact so the
+-- conversation can continue off-platform (the afrointroductions model).
 CREATE TABLE conversations (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   match_id UUID NOT NULL REFERENCES matches(id) ON DELETE CASCADE,
+  contact_unlocked BOOLEAN DEFAULT FALSE,
+  contact_unlock_cost INTEGER DEFAULT 50,
+  contact_unlocked_at TIMESTAMP WITH TIME ZONE,
   last_message_at TIMESTAMP WITH TIME ZONE,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );

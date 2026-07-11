@@ -75,7 +75,7 @@ export default function DiscoverPage() {
 
       let query = supabase
         .from('profiles')
-        .select('*')
+        .select('id, full_name, birth_date, gender, location, bio, photos, verified, is_ai_companion, banned')
         .neq('id', user.id)
         .not('photos', 'eq', '{}')
         .eq('banned', false)

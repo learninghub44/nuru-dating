@@ -28,7 +28,7 @@ ALTER TABLE rate_limits ENABLE ROW LEVEL SECURITY;
 -- No client policies: only the service-role key (which bypasses RLS) touches this table.
 
 -- -----------------------------------------------------------------------------
--- Atomic credit spending, used by /api/messages/send. Prevents the
+-- Atomic credit spending, used by /api/conversations/unlock-contact. Prevents the
 -- double-spend / race-condition risk of a client reading balance then
 -- writing balance - cost in two separate round trips.
 -- -----------------------------------------------------------------------------
@@ -405,3 +405,37 @@ CREATE POLICY "admins_select_own" ON admins
   FOR SELECT TO authenticated USING (user_id = auth.uid());
 
 -- analytics / settings: no client policies at all — service role only.
+
+-- -----------------------------------------------------------------------------
+-- Contact unlock: the one client-callable path to read a match's WhatsApp
+-- number. Re-checks match membership and the unlock flag itself, so it can't
+-- be used to read the number before it's actually been paid for — see
+-- migrations/20260711_contact_unlock_paywall.sql for the full rationale.
+-- -----------------------------------------------------------------------------
+
+CREATE OR REPLACE FUNCTION get_unlocked_whatsapp(p_conversation_id UUID)
+RETURNS TEXT AS $$
+DECLARE
+  v_other_id UUID;
+  v_number TEXT;
+BEGIN
+  SELECT
+    CASE WHEN m.user1_id = auth.uid() THEN m.user2_id ELSE m.user1_id END
+  INTO v_other_id
+  FROM conversations c
+  JOIN matches m ON m.id = c.match_id
+  WHERE c.id = p_conversation_id
+    AND c.contact_unlocked = TRUE
+    AND (m.user1_id = auth.uid() OR m.user2_id = auth.uid());
+
+  IF v_other_id IS NULL THEN
+    RETURN NULL;
+  END IF;
+
+  SELECT whatsapp_number INTO v_number FROM profiles WHERE id = v_other_id;
+  RETURN v_number;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+REVOKE ALL ON FUNCTION get_unlocked_whatsapp(UUID) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION get_unlocked_whatsapp(UUID) TO authenticated;

@@ -8,10 +8,9 @@ import { Input } from '@/components/ui/input'
 import { Card, CardContent } from '@/components/ui/card'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
-import { Heart, ArrowLeft, Send, Sparkles, Zap } from 'lucide-react'
+import { Heart, ArrowLeft, Send, Sparkles, Lock, MessageCircle, Zap } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { calculateAge, formatTime } from '@/lib/utils'
-import { MESSAGE_CREDIT_COST } from '@/lib/credit-packages'
 
 interface Message {
   id: string
@@ -36,6 +35,8 @@ interface Profile {
 interface Conversation {
   id: string
   match_id: string
+  contact_unlocked: boolean
+  contact_unlock_cost: number
 }
 
 export default function ChatPage() {
@@ -50,6 +51,9 @@ export default function ChatPage() {
   const [sending, setSending] = useState(false)
   const [newMessage, setNewMessage] = useState('')
   const [outOfCredits, setOutOfCredits] = useState(false)
+  const [unlockingContact, setUnlockingContact] = useState(false)
+  const [contactError, setContactError] = useState('')
+  const [whatsappNumber, setWhatsappNumber] = useState<string | null>(null)
   const [currentUserId, setCurrentUserId] = useState<string | null>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
@@ -83,7 +87,7 @@ export default function ChatPage() {
     try {
       const { data, error } = await supabase
         .from('profiles')
-        .select('*')
+        .select('id, full_name, birth_date, location, photos, verified, is_ai_companion')
         .eq('id', userId)
         .single()
 
@@ -123,11 +127,13 @@ export default function ChatPage() {
 
       if (error && error.code !== 'PGRST116') throw error
 
+      let activeConversation = convData
+
       if (convData) {
         setConversation(convData)
       } else {
-        // Create conversation — chatting is open by default. Credits are
-        // only charged per message sent, not for opening the thread.
+        // Create conversation — messaging is open by default and free.
+        // Contact is a separate, paid unlock (see contact_unlocked below).
         const { data: newConv, error: createError } = await supabase
           .from('conversations')
           .insert({ match_id: matches.id })
@@ -135,7 +141,15 @@ export default function ChatPage() {
           .single()
 
         if (createError) throw createError
+        activeConversation = newConv
         setConversation(newConv)
+      }
+
+      if (activeConversation?.contact_unlocked) {
+        const { data: number } = await supabase.rpc('get_unlocked_whatsapp', {
+          p_conversation_id: activeConversation.id,
+        })
+        setWhatsappNumber(number ?? null)
       }
     } catch (error) {
       console.error('Error loading conversation:', error)
@@ -201,35 +215,67 @@ export default function ChatPage() {
     setSending(true)
     const messageContent = newMessage.trim()
     setNewMessage('')
+
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) throw new Error('User not found')
+
+      // In-app messaging is free and unlimited once matched — no credits
+      // involved here. The only paid action is unlocking WhatsApp contact
+      // (handleUnlockContact below).
+      const { error } = await supabase.from('messages').insert({
+        conversation_id: conversation.id,
+        sender_id: user.id,
+        content: messageContent,
+        message_type: 'text',
+      })
+
+      if (error) throw error
+
+      await supabase
+        .from('conversations')
+        .update({ last_message_at: new Date().toISOString() })
+        .eq('id', conversation.id)
+    } catch (error) {
+      console.error('Error sending message:', error)
+      setNewMessage(messageContent)
+    } finally {
+      setSending(false)
+    }
+  }
+
+  const handleUnlockContact = async () => {
+    if (!conversation || unlockingContact) return
+
+    setUnlockingContact(true)
+    setContactError('')
     setOutOfCredits(false)
 
     try {
-      const res = await fetch('/api/messages/send', {
+      const res = await fetch('/api/conversations/unlock-contact', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ conversationId: conversation.id, content: messageContent }),
+        body: JSON.stringify({ conversationId: conversation.id }),
       })
 
       const data = await res.json()
 
       if (!res.ok) {
         if (data.code === 'INSUFFICIENT_CREDITS') {
-          // Don't block the thread — just surface an upgrade prompt and
-          // give the user their draft back so they can retry after topping up.
           setOutOfCredits(true)
-          setNewMessage(messageContent)
           return
         }
-        throw new Error(data.error || 'Failed to send message')
+        setContactError(data.error || 'Failed to unlock contact')
+        return
       }
 
-      // Realtime subscription also delivers this insert; the RLS-scoped
-      // client sees it via postgres_changes, so no local state push needed here.
+      setConversation({ ...conversation, contact_unlocked: true })
+      setWhatsappNumber(data.whatsappNumber ?? null)
     } catch (error) {
-      console.error('Error sending message:', error)
-      setNewMessage(messageContent)
+      console.error('Error unlocking contact:', error)
+      setContactError('Failed to unlock contact')
     } finally {
-      setSending(false)
+      setUnlockingContact(false)
     }
   }
 
@@ -283,6 +329,53 @@ export default function ChatPage() {
       {/* Messages */}
       <div className="flex-1 overflow-y-auto pt-20 pb-24 px-4">
         <div className="container mx-auto max-w-2xl space-y-4">
+          {/* Contact unlock — chatting in-app is always free; this is the
+              paid upsell to move the conversation to WhatsApp. */}
+          {conversation && (
+            whatsappNumber ? (
+              <Card className="glass-card border-gold-500/50">
+                <CardContent className="p-4 flex items-center gap-3">
+                  <MessageCircle className="h-8 w-8 text-gold-500 shrink-0" />
+                  <div className="flex-1">
+                    <p className="font-semibold text-sm">Contact unlocked</p>
+                    <p className="text-xs text-muted-foreground">{whatsappNumber}</p>
+                  </div>
+                  <a
+                    href={`https://wa.me/${whatsappNumber.replace(/[^0-9]/g, '')}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    <Button size="sm" className="bg-gold-500 text-black hover:bg-gold-600 shrink-0">
+                      Chat on WhatsApp
+                    </Button>
+                  </a>
+                </CardContent>
+              </Card>
+            ) : (
+              <Card className="glass-card border-gold-500/50">
+                <CardContent className="p-6 text-center">
+                  <Lock className="h-12 w-12 text-gold-500 mx-auto mb-4" />
+                  <h3 className="text-lg font-semibold mb-2">Unlock {otherUser?.full_name || 'their'} contact</h3>
+                  <p className="text-muted-foreground mb-4">
+                    Get their WhatsApp number and continue chatting outside the app
+                  </p>
+                  {contactError && (
+                    <p className="text-sm text-destructive mb-3">{contactError}</p>
+                  )}
+                  <Button
+                    onClick={handleUnlockContact}
+                    disabled={unlockingContact}
+                    className="bg-gold-500 text-black hover:bg-gold-600"
+                  >
+                    {unlockingContact
+                      ? 'Unlocking...'
+                      : `Unlock for ${conversation.contact_unlock_cost} credits`}
+                  </Button>
+                </CardContent>
+              </Card>
+            )
+          )}
+
           {messages.map((message) => {
             const isOwn = message.sender_id === currentUserId
 
@@ -321,7 +414,7 @@ export default function ChatPage() {
                 <div className="flex-1">
                   <p className="font-semibold text-sm">Out of credits</p>
                   <p className="text-xs text-muted-foreground">
-                    Top up to keep messaging — {MESSAGE_CREDIT_COST} credits per message.
+                    Top up to unlock contact details.
                   </p>
                 </div>
                 <Button

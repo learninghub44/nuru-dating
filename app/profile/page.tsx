@@ -34,6 +34,7 @@ interface Profile {
   interests: string[]
   photos: string[]
   verified: boolean
+  whatsapp_number: string | null
 }
 
 export default function ProfilePage() {
@@ -61,6 +62,7 @@ export default function ProfilePage() {
     drinking: '',
     smoking: '',
     interests: '',
+    whatsappNumber: '',
   })
 
   useEffect(() => {
@@ -106,6 +108,7 @@ export default function ProfilePage() {
         drinking: data.drinking || '',
         smoking: data.smoking || '',
         interests: (data.interests || []).join(', '),
+        whatsappNumber: data.whatsapp_number || '',
       })
     } catch (error: any) {
       setError(error.message)
@@ -147,6 +150,7 @@ export default function ProfilePage() {
           drinking: formData.drinking || null,
           smoking: formData.smoking || null,
           interests: formData.interests.split(',').map(i => i.trim()).filter(Boolean),
+          whatsapp_number: formData.whatsappNumber.trim() || null,
         })
         .eq('id', user.id)
 
@@ -487,6 +491,19 @@ export default function ProfilePage() {
                       value={formData.bio}
                       onChange={(e) => setFormData({ ...formData, bio: e.target.value })}
                     />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>WhatsApp Number</Label>
+                    <Input
+                      type="tel"
+                      placeholder="e.g. +254712345678"
+                      value={formData.whatsappNumber}
+                      onChange={(e) => setFormData({ ...formData, whatsappNumber: e.target.value })}
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Hidden from matches until they unlock your contact.
+                    </p>
                   </div>
 
                   <div className="grid grid-cols-2 gap-4">
