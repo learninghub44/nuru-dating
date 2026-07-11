@@ -7,6 +7,19 @@ import { checkRateLimit } from '@/lib/rate-limit'
 
 export async function POST(request: NextRequest) {
   try {
+    // Fail loud and specific if secrets aren't set, instead of letting
+    // createAdminClient() throw generically further down — this is what
+    // was actually happening when this route returned an opaque
+    // "Failed to initialize payment" with no signal about which var.
+    if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
+      console.error('Payment init: Supabase service role credentials are not configured')
+      return NextResponse.json({ error: 'Payments are not configured' }, { status: 500 })
+    }
+    if (!process.env.NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY) {
+      console.error('Payment init: NEXT_PUBLIC_PAYSTACK_PUBLIC_KEY is not configured')
+      return NextResponse.json({ error: 'Payments are not configured' }, { status: 500 })
+    }
+
     const supabase = await createServerClient()
     const {
       data: { user },
