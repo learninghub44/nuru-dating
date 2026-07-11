@@ -62,12 +62,12 @@ CREATE TABLE matches (
 );
 
 -- Conversations table
+-- Chatting is open as soon as two profiles match — there's no upfront
+-- "unlock this conversation" paywall. Credits are instead charged per
+-- message sent (see MESSAGE_CREDIT_COST / spend_credits in policies.sql).
 CREATE TABLE conversations (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   match_id UUID NOT NULL REFERENCES matches(id) ON DELETE CASCADE,
-  is_unlocked BOOLEAN DEFAULT FALSE,
-  unlock_cost INTEGER DEFAULT 100,
-  unlocked_at TIMESTAMP WITH TIME ZONE,
   last_message_at TIMESTAMP WITH TIME ZONE,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );

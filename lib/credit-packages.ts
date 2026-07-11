@@ -18,3 +18,8 @@ export const CREDIT_PACKAGES: Record<CreditPackageId, CreditPackage> = {
 }
 
 export const CREDIT_PACKAGE_LIST = Object.values(CREDIT_PACKAGES)
+
+// Cost to send a single chat message. Browsing, matching, and reading are
+// always free — this is the only credit-gated action, charged per message
+// instead of one big upfront "unlock this conversation" paywall.
+export const MESSAGE_CREDIT_COST = 5

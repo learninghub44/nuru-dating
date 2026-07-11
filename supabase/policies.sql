@@ -28,7 +28,7 @@ ALTER TABLE rate_limits ENABLE ROW LEVEL SECURITY;
 -- No client policies: only the service-role key (which bypasses RLS) touches this table.
 
 -- -----------------------------------------------------------------------------
--- Atomic credit spending, used by /api/conversations/unlock. Prevents the
+-- Atomic credit spending, used by /api/messages/send. Prevents the
 -- double-spend / race-condition risk of a client reading balance then
 -- writing balance - cost in two separate round trips.
 -- -----------------------------------------------------------------------------

@@ -8,9 +8,10 @@ import { Input } from '@/components/ui/input'
 import { Card, CardContent } from '@/components/ui/card'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
-import { Heart, ArrowLeft, Send, Sparkles, Lock } from 'lucide-react'
+import { Heart, ArrowLeft, Send, Sparkles, Zap } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { calculateAge, formatTime } from '@/lib/utils'
+import { MESSAGE_CREDIT_COST } from '@/lib/credit-packages'
 
 interface Message {
   id: string
@@ -35,8 +36,6 @@ interface Profile {
 interface Conversation {
   id: string
   match_id: string
-  is_unlocked: boolean
-  unlock_cost: number
 }
 
 export default function ChatPage() {
@@ -50,7 +49,7 @@ export default function ChatPage() {
   const [loading, setLoading] = useState(true)
   const [sending, setSending] = useState(false)
   const [newMessage, setNewMessage] = useState('')
-  const [unlocking, setUnlocking] = useState(false)
+  const [outOfCredits, setOutOfCredits] = useState(false)
   const [currentUserId, setCurrentUserId] = useState<string | null>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
@@ -127,14 +126,11 @@ export default function ChatPage() {
       if (convData) {
         setConversation(convData)
       } else {
-        // Create conversation
+        // Create conversation — chatting is open by default. Credits are
+        // only charged per message sent, not for opening the thread.
         const { data: newConv, error: createError } = await supabase
           .from('conversations')
-          .insert({
-            match_id: matches.id,
-            is_unlocked: false,
-            unlock_cost: 100,
-          })
+          .insert({ match_id: matches.id })
           .select()
           .single()
 
@@ -205,61 +201,35 @@ export default function ChatPage() {
     setSending(true)
     const messageContent = newMessage.trim()
     setNewMessage('')
+    setOutOfCredits(false)
 
     try {
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) throw new Error('User not found')
-
-      const { error } = await supabase.from('messages').insert({
-        conversation_id: conversation.id,
-        sender_id: user.id,
-        content: messageContent,
-        message_type: 'text',
-      })
-
-      if (error) throw error
-
-      // Update last_message_at
-      await supabase
-        .from('conversations')
-        .update({ last_message_at: new Date().toISOString() })
-        .eq('id', conversation.id)
-    } catch (error) {
-      console.error('Error sending message:', error)
-      setNewMessage(messageContent)
-    } finally {
-      setSending(false)
-    }
-  }
-
-  const handleUnlockConversation = async () => {
-    if (!conversation || unlocking) return
-
-    setUnlocking(true)
-    try {
-      const res = await fetch('/api/conversations/unlock', {
+      const res = await fetch('/api/messages/send', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ conversationId: conversation.id }),
+        body: JSON.stringify({ conversationId: conversation.id, content: messageContent }),
       })
 
       const data = await res.json()
 
       if (!res.ok) {
-        if (data.error?.includes('Insufficient')) {
-          alert(data.error)
-          router.push('/wallet')
+        if (data.code === 'INSUFFICIENT_CREDITS') {
+          // Don't block the thread — just surface an upgrade prompt and
+          // give the user their draft back so they can retry after topping up.
+          setOutOfCredits(true)
+          setNewMessage(messageContent)
           return
         }
-        throw new Error(data.error || 'Failed to unlock conversation')
+        throw new Error(data.error || 'Failed to send message')
       }
 
-      setConversation({ ...conversation, is_unlocked: true })
-    } catch (error: any) {
-      console.error('Error unlocking conversation:', error)
-      alert(error.message || 'Failed to unlock conversation')
+      // Realtime subscription also delivers this insert; the RLS-scoped
+      // client sees it via postgres_changes, so no local state push needed here.
+    } catch (error) {
+      console.error('Error sending message:', error)
+      setNewMessage(messageContent)
     } finally {
-      setUnlocking(false)
+      setSending(false)
     }
   }
 
@@ -313,25 +283,6 @@ export default function ChatPage() {
       {/* Messages */}
       <div className="flex-1 overflow-y-auto pt-20 pb-24 px-4">
         <div className="container mx-auto max-w-2xl space-y-4">
-          {conversation && !conversation.is_unlocked && (
-            <Card className="glass-card border-gold-500/50">
-              <CardContent className="p-6 text-center">
-                <Lock className="h-12 w-12 text-gold-500 mx-auto mb-4" />
-                <h3 className="text-lg font-semibold mb-2">Unlock this conversation</h3>
-                <p className="text-muted-foreground mb-4">
-                  Send {conversation.unlock_cost} credits to start messaging
-                </p>
-                <Button
-                  onClick={handleUnlockConversation}
-                  disabled={unlocking}
-                  className="bg-gold-500 text-black hover:bg-gold-600"
-                >
-                  {unlocking ? 'Unlocking...' : `Unlock for ${conversation.unlock_cost} credits`}
-                </Button>
-              </CardContent>
-            </Card>
-          )}
-
           {messages.map((message) => {
             const isOwn = message.sender_id === currentUserId
 
@@ -363,17 +314,37 @@ export default function ChatPage() {
       {/* Message Input */}
       <div className="fixed bottom-0 w-full glass border-t border-border p-4">
         <div className="container mx-auto max-w-2xl">
+          {outOfCredits && (
+            <Card className="glass-card border-gold-500/50 mb-3">
+              <CardContent className="p-4 flex items-center gap-3">
+                <Zap className="h-8 w-8 text-gold-500 shrink-0" />
+                <div className="flex-1">
+                  <p className="font-semibold text-sm">Out of credits</p>
+                  <p className="text-xs text-muted-foreground">
+                    Top up to keep messaging — {MESSAGE_CREDIT_COST} credits per message.
+                  </p>
+                </div>
+                <Button
+                  size="sm"
+                  className="bg-gold-500 text-black hover:bg-gold-600 shrink-0"
+                  onClick={() => router.push('/wallet')}
+                >
+                  Upgrade
+                </Button>
+              </CardContent>
+            </Card>
+          )}
           <div className="flex gap-2">
             <Input
               placeholder="Type a message..."
               value={newMessage}
               onChange={(e) => setNewMessage(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
-              disabled={!conversation?.is_unlocked || sending}
+              disabled={sending}
             />
             <Button
               onClick={handleSendMessage}
-              disabled={!newMessage.trim() || !conversation?.is_unlocked || sending}
+              disabled={!newMessage.trim() || sending}
               className="bg-gold-500 text-black hover:bg-gold-600"
             >
               <Send className="h-5 w-5" />
